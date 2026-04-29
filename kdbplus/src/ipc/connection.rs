@@ -1112,7 +1112,7 @@ where
     let mut read_total = 0;
     let to_read = buffer.len();
     loop {
-        read_total += socket.read(buffer).await?;
+        read_total += socket.read(&mut buffer[read_total..]).await?;
         if read_total == to_read {
             break;
         }
