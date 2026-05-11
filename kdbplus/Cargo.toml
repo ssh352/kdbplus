@@ -26,7 +26,8 @@ trust-dns-resolver = { version = "0.22", optional = true }
 default = []
 # Select one of two features
 api = []
-ipc = ["once_cell", "chrono", "trust-dns-resolver", "tokio", "tokio-native-tls", "async-trait", "sha1_smol"]
+ipc = ["once_cell", "chrono", "trust-dns-resolver", "tokio", "async-trait", "sha1_smol"]
+ipc-tls = ["ipc", "tokio-native-tls"]
 
 [dev-dependencies]
 # IPC test and example

@@ -14,13 +14,17 @@ use std::convert::TryInto;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::Path;
 use std::{env, fs, io, str};
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
+#[cfg(feature = "ipc-tls")]
+use tokio::io::BufReader;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 #[cfg(unix)]
 use tokio::net::{UnixListener, UnixStream};
+#[cfg(feature = "ipc-tls")]
 use tokio_native_tls::native_tls::{
     Identity, TlsAcceptor as TlsAcceptorInner, TlsConnector as TlsConnectorInner,
 };
+#[cfg(feature = "ipc-tls")]
 use tokio_native_tls::{TlsAcceptor, TlsConnector, TlsStream};
 use trust_dns_resolver::TokioAsyncResolver;
 
@@ -157,6 +161,7 @@ const ACCOUNTS: Lazy<HashMap<String, String>> = Lazy::new(|| {
 /// Connection method to q/kdb+.
 pub enum ConnectionMethod {
     TCP = 0,
+    #[cfg(feature = "ipc-tls")]
     TLS = 1,
     /// Unix domanin socket.
     UDS = 2,
@@ -438,6 +443,7 @@ impl QStream {
                     is_local,
                 ))
             }
+            #[cfg(feature = "ipc-tls")]
             ConnectionMethod::TLS => {
                 let stream = connect_tls(host, port, credential).await?;
                 Ok(QStream::new(
@@ -534,6 +540,7 @@ impl QStream {
                     ip_address.ip() == IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
                 ))
             }
+            #[cfg(feature = "ipc-tls")]
             ConnectionMethod::TLS => {
                 // Bind to the endpoint.
                 let listener = TcpListener::bind(&format!("{}:{}", host, port)).await?;
@@ -560,7 +567,7 @@ impl QStream {
                 // TLS is always a remote connection
                 let mut qstream = QStream::new(
                     Box::new(TlsStream::from(tls_socket)),
-                    ConnectionMethod::TCP,
+                    ConnectionMethod::TLS,
                     true,
                     false,
                 );
@@ -659,6 +666,7 @@ impl QStream {
     pub fn get_connection_type(&self) -> &str {
         match self.method {
             ConnectionMethod::TCP => "TCP",
+            #[cfg(feature = "ipc-tls")]
             ConnectionMethod::TLS => "TLS",
             ConnectionMethod::UDS => "UDS",
         }
@@ -723,6 +731,7 @@ impl QStreamInner for TcpStream {
     }
 }
 
+#[cfg(feature = "ipc-tls")]
 #[async_trait]
 impl QStreamInner for TlsStream<TcpStream> {
     async fn shutdown(&mut self, is_listener: bool) -> Result<()> {
@@ -956,6 +965,7 @@ async fn connect_tcp(host: &str, port: u16, credential: &str) -> Result<TcpStrea
 /// - `host`: Hostname or IP address of the target q process.
 /// - `port`: Port of the target q process.
 /// - `credential`: Credential in the form of `username:password` to connect to the target q process.
+#[cfg(feature = "ipc-tls")]
 async fn connect_tls(host: &str, port: u16, credential: &str) -> Result<TlsStream<TcpStream>> {
     // Connect via TCP
     let socket_ = connect_tcp_impl(host, port).await?;
@@ -1071,6 +1081,7 @@ where
 }
 
 /// Check if server key exists and return teh contents.
+#[cfg(feature = "ipc-tls")]
 async fn build_identity_from_cert() -> Result<Identity> {
     // Check if server key exists.
     if let Ok(path) = env::var("KDBPLUS_TLS_KEY_FILE") {
