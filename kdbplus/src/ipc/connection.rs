@@ -1123,7 +1123,11 @@ where
     let mut read_total = 0;
     let to_read = buffer.len();
     loop {
-        read_total += socket.read(buffer).await?;
+        let read_now = socket.read(&mut buffer[read_total..]).await?;
+        if read_now == 0 {
+            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "socket closed").into());
+        }
+        read_total += read_now;
         if read_total == to_read {
             break;
         }
